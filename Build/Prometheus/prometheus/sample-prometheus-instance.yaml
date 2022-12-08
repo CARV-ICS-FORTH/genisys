@@ -1,0 +1,123 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: default
+
+---
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: gold
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-data
+  namespace: jenkins
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: gold
+
+---
+
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: sample-metrics-prom
+  labels:
+    app: sample-metrics-prom
+    prometheus: sample-metrics-prom
+spec:
+  replicas: 1
+  baseImage: ${IMAGE_TAG}
+  version: v2.2.1
+#  serviceAccountName: prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      service-monitor: metrics
+  resources:
+    requests:
+      memory: 300Mi
+  retention: 7d
+  #volumes:
+  #  - name: jenkins-persistent-storage
+  #    mountPath: /etc/prometheus/prometheus.yml
+  #    subPath: prometheus.yml
+      #persistentVolumeClaim:
+       # claimName: jenkins-data
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-metrics-prom
+  labels:
+    app: sample-metrics-prom
+    prometheus: sample-metrics-prom
+spec:
+  type: NodePort
+  ports:
+  - name: web
+    nodePort: 30999
+    port: 9090
+    targetPort: web
+  selector:
+    prometheus: sample-metrics-prom
+---
+
+kind: Template
+name: sample-metrics-prom
+description: sample-metrics-prom
+singleton: yes
+variables:
+- name: NAME
+  default: sample-metrics-prom
+- name: HOSTNAME
+  default: hello-kubernetes.example.com
+- name: REGISTRY
+  default: 127.0.0.1:5000
+
+

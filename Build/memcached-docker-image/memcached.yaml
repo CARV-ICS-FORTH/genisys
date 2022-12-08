@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memcached
+  labels:
+    app:  metrics
+  annotations:
+    metric-value: "7000000"
+    type: "DATACENTER-JOB"
+    net-bandwidth: "1"
+    io-bandwidth: "15000000"
+    cpu-bandwidth: "1000" 
+    HPA: "0" 
+    dynamic-resource-management: "0"
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: metrics
+  template:
+    metadata:
+      labels:
+        app: metrics
+    spec:
+      schedulerName: genisys
+      tolerations:
+      - key: beta.kubernetes.io/arch
+        value: arm
+        effect: NoSchedule
+      - key: beta.kubernetes.io/arch
+        value: arm64
+        effect: NoSchedule
+      - key: node.alpha.kubernetes.io/unreachable
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 0
+      - key: node.alpha.kubernetes.io/notReady
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 0
+      containers:
+      - name: memcached
+        image: ${MEMCACHED_IMAGE_TAG}
+        imagePullPolicy: ${imagePullPolicy}
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+        ports:
+          - name: web
+            containerPort: 8080
+          - name: mem
+            containerPort: 11211
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          limits:
+      terminationGracePeriodSeconds: 2    
+            
+---
+
+apiVersion: v1 
+kind: Service
+metadata:
+  name: ycsb-mem
+  labels:
+    app: metrics
+spec:
+  ports:
+  - name: mem
+    port: 81
+    protocol: TCP
+    targetPort: 11211
+  selector:
+    app: metrics
+  externalIPs: 
+    - 192.168.4.33 #Put you Node IPs here
+    - 192.168.4.34
+---
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: memcached
+  labels:
+    service-monitor: metrics
+spec:
+  selector:
+    matchLabels:
+      app: metrics
+  namespaceSelector:
+    matchNames:
+    - kube-system
+    - monitoring
+    - default
+    - georgzerb #add your namespace here
+  endpoints:
+  - port: web
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: memcached
+  annotations:
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /sample-app
+        backend:
+          serviceName: sample-metrics-app
+          servicePort: 80
+
+

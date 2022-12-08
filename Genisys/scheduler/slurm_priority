@@ -1,0 +1,5 @@
+#!/bin/sh
+d=${1?Pod_Name}
+e=${2:-namespace}
+u=${3?Job_Name}      
+kubectl exec -it $d -n $e -- sh -c 'scontrol top '$u''

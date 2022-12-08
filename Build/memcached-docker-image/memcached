@@ -1,0 +1,2 @@
+memcached -t 32  &
+

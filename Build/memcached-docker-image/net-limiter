@@ -1,0 +1,6 @@
+#!/bin/bash
+d=${1?Error: no name given}
+u=${2:-friend}
+sudo wondershaper clear eth0
+sudo wondershaper eth0 $d $u
+

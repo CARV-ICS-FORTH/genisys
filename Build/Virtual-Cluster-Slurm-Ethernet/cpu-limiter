@@ -1,0 +1,12 @@
+#!/bin/bash
+d=${1?Error: no name given}
+
+cgset -r cpu.cfs_period_us=100000 cpulimit
+cgset -r cpu.cfs_quota_us=$d cpulimit
+
+top -c -n 1 -b  | awk '{print $1}' | grep -Eo '[[:digit:]]*' > proccesses
+
+while read line; 
+do 
+cgclassify -g cpu:cpulimit $line  
+done < proccesses

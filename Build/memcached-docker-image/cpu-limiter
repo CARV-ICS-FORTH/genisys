@@ -1,0 +1,10 @@
+#!/bin/bash
+d=${1?Error: no name given}
+
+sudo pkill cpulimit
+top -c -n 1 -b | head -8 | awk '{print $1}' | grep -Eo '[0-9]{1,4}' > proccesses
+
+while read line; 
+do 
+sudo cpulimit -b -p $line -l $d 
+done < proccesses

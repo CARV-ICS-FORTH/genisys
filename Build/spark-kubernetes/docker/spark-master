@@ -1,0 +1,23 @@
+#!/bin/bash
+
+. /common.sh
+
+echo "$(hostname -i) spark-master" >> /etc/hosts
+
+# (Testing)
+LABEL=${1:-mpi}
+PREFIX=${2:-10.}
+SLOTS=${3:-2}
+
+# Wait for all the pods to become ready.
+while [[ $(kubectl get pods -l component=spark-worker -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}' | xargs -n 1 | sort -u) != "True" ]]; do
+    echo "Waiting for pod(s)..."
+    sleep 1
+done
+
+export SPARK_HOME="/opt/spark"
+export SPARK_MASTER_HOST=spark://$(hostname -i):7077
+echo spark.driver.host $(hostname -i) >> /opt/spark/conf/spark-defaults.conf
+
+
+/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master --ip spark-master --port 7077 --webui-port 8080 

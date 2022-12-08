@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: genisys
+spec:
+  type: ClusterIP
+  ports:
+  - port: 22
+  selector:
+    app: genisys
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: genisys
+  labels:
+    app: genisys
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: genisys
+  template:
+    metadata:
+      labels:
+        app: genisys
+    spec:
+      containers:
+      - image: ${genisys_IMAGE_TAG}
+        imagePullPolicy: ${imagePullPolicy}
+        name: genisys
+        ports:
+        - containerPort: 22
+        env:
+        - name: OMPI_ALLOW_RUN_AS_ROOT
+          value: "1"
+        - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+          value: "1"
+        # Create the hostfile (arguments: <app label> <network prefix> <slots per node>)
+        command: ['/bin/sh', './genisys_init_command.sh']
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+            add: ["IPC_LOCK"]     

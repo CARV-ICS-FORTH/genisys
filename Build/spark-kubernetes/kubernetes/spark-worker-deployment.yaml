@@ -1,0 +1,44 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: spark
+  annotations:
+    type: "DATACENTER-JOB"
+    net-bandwidth: "1"
+    io-bandwidth: "15000000"
+    cpu-bandwidth: "2000" 
+    dynamic-resource-management: "0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      component: spark-worker
+  template:
+    metadata:
+      labels:
+        component: spark-worker
+    spec:
+      schedulerName: genisys
+      containers:
+        - name: spark-worker
+          image: ${IMAGE_TAG}
+          imagePullPolicy: ${imagePullPolicy}
+          volumeMounts:
+          - name: shared-data
+            mountPath: /nfs
+          command: ["/spark-worker"]
+          ports:
+            - containerPort: 8081
+          resources:
+            requests:
+              cpu: 100m
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - NET_ADMIN
+              add: ["IPC_LOCK"]    
+      volumes:
+        - name: shared-data
+          hostPath:
+            path: ${NFS_PATH}    
